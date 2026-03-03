@@ -20,3 +20,12 @@ detector = DeepfakeDetector()
 @app.post("/test-deepfake")
 def test_deepfake():
     return detector.detect_deepfake("sample_audio")
+
+from sentiment_engine import SentimentEngine
+
+engine = SentimentEngine()
+
+@app.post("/test-urgency")
+def test_urgency():
+    sample = "This is urgent. Your account will be suspended immediately."
+    return engine.detect_urgency(sample)
