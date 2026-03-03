@@ -13,3 +13,10 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow()
     }
+from deepfake_detector import DeepfakeDetector
+
+detector = DeepfakeDetector()
+
+@app.post("/test-deepfake")
+def test_deepfake():
+    return detector.detect_deepfake("sample_audio")
