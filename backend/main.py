@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from datetime import datetime
+from pydantic import BaseModel
+from deepfake_detector import DeepfakeDetector
+from sentiment_engine import SentimentEngine
+from negotiator import Negotiator
 
 app = FastAPI(title="EchoShield API")
 
@@ -13,15 +17,12 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow()
     }
-from deepfake_detector import DeepfakeDetector
 
 detector = DeepfakeDetector()
 
 @app.post("/test-deepfake")
 def test_deepfake():
     return detector.detect_deepfake("sample_audio")
-
-from sentiment_engine import SentimentEngine
 
 engine = SentimentEngine()
 
@@ -30,12 +31,11 @@ def test_urgency():
     sample = "This is urgent. Your account will be suspended immediately."
     return engine.detect_urgency(sample)
 
-from pydantic import BaseModel
-
 class AnalyzeRequest(BaseModel):
     audio_data: str
     transcript: str
 
+negotiator = Negotiator()
 
 @app.post("/api/analyze")
 def analyze_threat(request: AnalyzeRequest):
@@ -57,6 +57,8 @@ def analyze_threat(request: AnalyzeRequest):
     else:
         level = "LOW"
 
+    negotiation = negotiator.generate_response(level)
+
     return {
         "deepfake_detection": deepfake_result,
         "urgency_detection": urgency_result,
@@ -64,5 +66,6 @@ def analyze_threat(request: AnalyzeRequest):
             "threat_level": level,
             "combined_confidence": round(combined_score, 2),
             "requires_family_alert": level in ["HIGH", "CRITICAL"]
-        }
+        },
+        "negotiation_strategy": negotiation
     }
