@@ -37,6 +37,13 @@ class AnalyzeRequest(BaseModel):
 
 negotiator = Negotiator()
 
+def calibrate_confidence(score: float):
+    if score > 0.85:
+        return round(score * 0.98, 2)
+    elif score > 0.6:
+        return round(score * 0.95, 2)
+    return round(score, 2)
+
 @app.post("/api/analyze")
 def analyze_threat(request: AnalyzeRequest):
 
@@ -58,6 +65,7 @@ def analyze_threat(request: AnalyzeRequest):
         level = "LOW"
 
     negotiation = negotiator.generate_response(level)
+    combined_score = calibrate_confidence(combined_score)
 
     return {
         "deepfake_detection": deepfake_result,
