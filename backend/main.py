@@ -43,10 +43,10 @@ def analyze_threat(request: AnalyzeRequest):
     deepfake_result = detector.detect_deepfake(request.audio_data)
     urgency_result = engine.detect_urgency(request.transcript)
 
-    combined_score = (
-        deepfake_result["confidence"] * 0.6 +
-        urgency_result["urgency_score"] * 0.4
-    )
+    combined_score = (deepfake_result.get("confidence", 0) + urgency_result.get("urgency_score", 0)) / 2
+    
+    if deepfake_result["is_deepfake"] and urgency_result["urgency_detected"]:
+        combined_score += 0.1  # multi-signal amplification
 
     if combined_score > 0.8:
         level = "CRITICAL"
