@@ -37,6 +37,12 @@ class AnalyzeRequest(BaseModel):
     transcript: str
 
 
+class ThreatResponse(BaseModel):
+    deepfake_score: float
+    sentiment_score: float
+    threat_level: float
+    confidence: float
+
 # ================================
 # Utility Functions
 # ================================
@@ -74,7 +80,7 @@ def health_check():
 # Basic Testing Endpoints
 # ================================
 
-@app.post("/analyze")
+@app.post("/analyze", response_model=ThreatResponse)
 def analyze(req: ThreatRequest):
     return analyze_threat(req.content)
 
