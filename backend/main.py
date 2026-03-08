@@ -2,15 +2,18 @@
 # EchoShield API - Main Application
 # ================================
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from datetime import datetime
 from pydantic import BaseModel
+import shutil
+import os
 
 # Internal Modules
 from deepfake_detector import DeepfakeDetector
 from sentiment_engine import SentimentEngine
 from negotiator import Negotiator
 from threat_analyzer import analyze_threat
+from audio_transcriber import transcribe_audio
 
 
 # ================================
@@ -42,6 +45,7 @@ class ThreatResponse(BaseModel):
     sentiment_score: float
     threat_level: float
     confidence: float
+
 
 # ================================
 # Utility Functions
@@ -143,4 +147,33 @@ def analyze_threat_endpoint(request: AnalyzeRequest):
             "requires_family_alert": level in ["HIGH", "CRITICAL"]
         },
         "negotiation_strategy": negotiation
+    }
+
+
+# ================================
+# NEW: Audio Upload Scam Detection
+# ================================
+
+@app.post("/api/analyze-audio")
+async def analyze_audio(file: UploadFile = File(...)):
+
+    # Save uploaded file temporarily
+    temp_path = f"temp_{file.filename}"
+
+    with open(temp_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Step 1: Convert speech to text
+    transcript = transcribe_audio(temp_path)
+
+    # Step 2: Run threat analysis on transcript
+    analysis_result = analyze_threat(transcript)
+
+    # Cleanup temp file
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+
+    return {
+        "transcript": transcript,
+        "analysis": analysis_result
     }
