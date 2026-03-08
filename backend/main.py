@@ -9,11 +9,11 @@ import shutil
 import os
 
 # Internal Modules
-from deepfake_detector import DeepfakeDetector
-from sentiment_engine import SentimentEngine
-from negotiator import Negotiator
-from threat_analyzer import analyze_threat
-from audio_transcriber import transcribe_audio
+from backend.deepfake_detector import DeepfakeDetector
+from backend.sentiment_engine import SentimentEngine
+from backend.negotiator import Negotiator
+from backend.threat_analyzer import analyze_threat
+from backend.audio_transcriber import transcribe_audio
 
 
 # ================================

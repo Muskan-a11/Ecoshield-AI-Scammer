@@ -1,13 +1,17 @@
 # backend/threat_analyzer.py
 
-from deepfake_detector import detect_deepfake
-from sentiment_engine import analyze_sentiment
-from negotiator import classify_threat
+from backend.deepfake_detector import DeepfakeDetector
+from backend.sentiment_engine import SentimentEngine
+from backend.negotiator import Negotiator
+
 
 def analyze_threat(content: str):
-    deepfake_score = detect_deepfake(content)
-    sentiment_score = analyze_sentiment(content)
-    threat_level = classify_threat(content)
+    deepfake_detector = DeepfakeDetector()
+    deepfake_score = deepfake_detector.detect(content)
+    sentiment_engine = SentimentEngine()
+    sentiment_score = sentiment_engine.analyze(content)
+    negotiator = Negotiator()
+    threat_level = negotiator.classify(content)
 
     final_confidence = (
         deepfake_score * 0.4 +
