@@ -1,82 +1,49 @@
-import { useState } from "react";
-import { analyzeThreat } from "../api";
+import React, { useState } from "react";
+import { analyzeText, analyzeAudio } from "../api";
 
 export default function ThreatForm({ setResult }) {
 
-  const [content, setContent] = useState("");
+  const [text, setText] = useState("");
   const [file, setFile] = useState(null);
 
-  // ============================
-  // Text Analysis
-  // ============================
-
-  const handleAnalyze = async () => {
-
-    if (!content) {
-      alert("Please enter some text to analyze.");
-      return;
-    }
-
-    const data = await analyzeThreat(content);
-    setResult(data);
+  const handleTextSubmit = async () => {
+    const result = await analyzeText(text);
+    setResult(result);
   };
 
-  // ============================
-  // Audio Upload Analysis
-  // ============================
-
-  const handleAudioUpload = async () => {
-
-    if (!file) {
-      alert("Please upload an audio file.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch("http://127.0.0.1:8000/api/analyze-audio", {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await response.json();
-    setResult(data);
+  const handleAudioSubmit = async () => {
+    const result = await analyzeAudio(file);
+    setResult(result);
   };
 
   return (
-    <div>
 
-      <h2>Text Scam Detection</h2>
+    <div className="card">
+
+      <h2>Analyze Suspicious Message</h2>
 
       <textarea
-        placeholder="Paste suspicious message or conversation..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
+        rows="4"
+        placeholder="Paste suspicious message..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
       />
 
-      <br />
-
-      <button onClick={handleAnalyze}>
+      <button onClick={handleTextSubmit}>
         Analyze Text
       </button>
 
+      <hr style={{margin:"25px 0", borderColor:"#222"}}/>
 
-      <hr style={{ margin: "30px 0" }} />
-
-
-      <h2>Call Recording Detection</h2>
+      <h2>Upload Call Recording</h2>
 
       <input
         type="file"
-        accept="audio/*"
         onChange={(e) => setFile(e.target.files[0])}
       />
 
-      <br />
-
-      <button onClick={handleAudioUpload}>
-        Upload Call Recording
+      <button onClick={handleAudioSubmit}>
+        Analyze Audio
       </button>
 
     </div>
