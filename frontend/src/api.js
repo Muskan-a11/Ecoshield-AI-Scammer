@@ -12,15 +12,18 @@ export async function analyzeText(content) {
 }
 
 
-export async function analyzeAudio(file) {
+export async function analyzeAudio(audioFile) {
 
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", audioFile);
 
   const response = await fetch("http://127.0.0.1:8000/api/analyze-audio", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: formData
   });
 
-  return response.json();
+  return await response.json();
 }
