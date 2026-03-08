@@ -7,10 +7,14 @@ function App() {
   const [result, setResult] = useState(null);
 
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
+    <div className="container">
 
-      <h1>EchoShield AI</h1>
-      <p>Detect scam messages and calls using AI</p>
+      <div className="header">
+        <h1 className="title">EchoShield AI</h1>
+        <p className="subtitle">
+          AI Powered Scam Message & Call Detection
+        </p>
+      </div>
 
       <ThreatForm setResult={setResult} />
 
