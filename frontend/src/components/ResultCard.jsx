@@ -4,8 +4,6 @@ export default function ResultCard({ result }) {
 
   if (!result) return null;
 
-  const analysis = result.analysis ? result.analysis : result;
-
   return (
     <div style={{ marginTop: "30px" }}>
 
@@ -16,15 +14,19 @@ export default function ResultCard({ result }) {
         </>
       )}
 
-      <h3>Threat Analysis</h3>
+      {result.overall_threat_assessment && (
+        <>
+          <h3>Threat Analysis</h3>
 
-      <p>Deepfake Score: {analysis.deepfake_score}</p>
-      <p>Sentiment Score: {analysis.sentiment_score}</p>
-      <p>Threat Level: {analysis.threat_level}</p>
+          <p>Deepfake Score: {result.deepfake_detection?.confidence ?? 0}</p>
+          <p>Sentiment Score: {result.urgency_detection?.urgency_score ?? 0}</p>
+          <p>Threat Level: {result.overall_threat_assessment?.threat_level}</p>
 
-      <h2>
-        Confidence: {analysis.confidence}%
-      </h2>
+          <h2>
+            Confidence: {result.overall_threat_assessment?.combined_confidence * 100}%
+          </h2>
+        </>
+      )}
 
     </div>
   );

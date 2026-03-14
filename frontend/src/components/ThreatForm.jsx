@@ -11,35 +11,20 @@ export default function ThreatForm({ setResult }) {
     setResult(result);
   };
 
- const handleAudioSubmit = async () => {
-  if (!file) {
-    alert("Please upload an audio file");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("file", file); // key must match FastAPI parameter
-
-  try {
-    const response = await fetch("http://127.0.0.1:8000/api/analyze-audio", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Error response:", errorData);
-      setResult(errorData);
+  const handleAudioSubmit = async () => {
+    if (!file) {
+      alert("Please upload an audio file");
       return;
     }
 
-    const result = await response.json();
-    console.log("Analysis result:", result);
-    setResult(result);
-  } catch (err) {
-    console.error("Network error:", err);
-  }
-};
+    try {
+      const result = await analyzeAudio(file);
+      console.log("Analysis result:", result);
+      setResult(result);
+    } catch (err) {
+      console.error("Network error:", err);
+    }
+  };
 
   return (
     <div className="card">
