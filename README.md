@@ -1,553 +1,405 @@
-# EchoShield - Real-Time AI Scammer Interceptor
+# 🛡️ EchoShield — Real-Time AI Scammer Interceptor
 
-## 📋 Project Overview
+> Protect yourself from phone scams with live deepfake voice detection, scam tactic recognition, and an AI negotiator that wastes scammers' time.
 
-**EchoShield** is a production-ready, real-time AI system designed to detect and intercept scam calls by:
+---
 
-- 🎤 **Deepfake Voice Detection** - Identifies AI-generated (synthetic) voices using acoustic analysis
-- ⚠️ **Urgency Language Detection** - Recognizes high-pressure, scam-specific language patterns
-- 🤖 **AI Negotiator** - Generates human-like responses to waste scammer time
-- 🔔 **Family Alerts** - Sends notifications to emergency contacts for high-risk threats
-- 🔒 **Secure Logging** - Privacy-first metadata storage (no raw audio saved)
-
-## 🏗️ System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    FRONTEND (Web UI)                         │
-│              HTML + JavaScript + WebSocket                   │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Call Input | Results Dashboard | Alert System      │   │
-│  └─────────────────────────────────────────────────────┘   │
-└────────────────────┬────────────────────────────────────────┘
-                     │ WebSocket / REST API
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  BACKEND (FastAPI Server)                    │
-│                                                               │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │ ANALYSIS PIPELINE                                     │   │
-│  │                                                        │   │
-│  │  1. Audio Input                                       │   │
-│  │       ↓                                               │   │
-│  │  2. Deepfake Detector (ResNet simulation)            │   │
-│  │       ↓                                               │   │
-│  │  3. Sentiment Engine (BERT-style urgency detection)  │   │
-│  │       ↓                                               │   │
-│  │  4. Risk Score Calculation                           │   │
-│  │       ↓                                               │   │
-│  │  5. AI Negotiator (Response generation)              │   │
-│  │       ↓                                               │   │
-│  │  6. Database Logging (Metadata only)                 │   │
-│  │       ↓                                               │   │
-│  │  7. Family Alert (if threat detected)                │   │
-│  │                                                        │   │
-│  └──────────────────────────────────────────────────────┘   │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-         ┌──────────────────────┐
-         │   MongoDB Database   │
-         │  (Threat Metadata)   │
-         └──────────────────────┘
-```
-
-## 📦 Project Structure
+## 📁 Project Structure
 
 ```
 echoshield/
+├── backend/                    # Python FastAPI backend
+│   ├── app/
+│   │   ├── main.py             # FastAPI application entry point
+│   │   ├── api/
+│   │   │   ├── auth.py         # Signup, login, JWT endpoints
+│   │   │   ├── audio.py        # /stream-audio, /analyze-audio
+│   │   │   └── analysis.py     # /analyze, /call-logs, /stats
+│   │   ├── core/
+│   │   │   ├── database.py     # MongoDB Atlas connection (Motor + Beanie)
+│   │   │   └── security.py     # JWT creation/validation, bcrypt hashing
+│   │   ├── models/
+│   │   │   ├── user.py         # User document model + Pydantic schemas
+│   │   │   └── call_log.py     # CallLog document model + ThreatResult
+│   │   └── services/
+│   │       ├── transcription.py     # OpenAI Whisper speech-to-text
+│   │       ├── deepfake_detector.py # PyTorch SpectrogramCNN analysis
+│   │       ├── scam_detector.py     # NLP urgency pattern detection
+│   │       ├── threat_classifier.py # Multi-signal threat scoring
+│   │       └── negotiator.py        # AI time-wasting strategy generator
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   ├── run.py
+│   └── .env.example
 │
-├── backend/
-│   ├── main.py                      # FastAPI server with REST/WebSocket endpoints
-│   ├── websocket.py                 # WebSocket handler & analysis pipeline
-│   ├── deepfake_detector.py         # Deepfake voice detection engine
-│   ├── sentiment_engine.py          # Urgency & scam language detection
-│   ├── negotiator.py                # AI negotiator response generator
-│   └── database.py                  # MongoDB threat logging manager
+├── flutter-app/                # Flutter mobile app (Android + iOS)
+│   ├── lib/
+│   │   ├── main.dart           # App entry, theme, routing
+│   │   ├── screens/
+│   │   │   ├── splash_screen.dart
+│   │   │   ├── login_screen.dart    # Login + signup UI
+│   │   │   └── dashboard_screen.dart # Main dashboard + tabs
+│   │   ├── widgets/
+│   │   │   ├── threat_gauge.dart    # Animated arc gauge widget
+│   │   │   ├── threat_alert_overlay.dart  # Full-screen threat popup
+│   │   │   └── call_log_tile.dart   # Log entry + stat card
+│   │   └── services/
+│   │       ├── auth_service.dart    # JWT login/signup/logout
+│   │       ├── call_monitor_service.dart  # Audio streaming + threat detection
+│   │       ├── notification_service.dart  # Push notification handler
+│   │       └── api_service.dart     # REST client
+│   ├── android/
+│   │   └── app/src/main/AndroidManifest.xml
+│   └── pubspec.yaml
 │
-├── frontend/
-│   ├── index.html                   # UI with threat analysis dashboard
-│   └── app.js                       # JavaScript WebSocket client
+├── web-dashboard/              # Single-file web app
+│   └── index.html              # Landing page + full dashboard SPA
 │
-├── models/
-│   └── resnet_audio.pth             # Pre-trained audio model (placeholder)
-│
-├── requirements.txt                 # Python dependencies
-└── README.md                        # This file
+└── docker-compose.yml          # One-command deployment
 ```
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Python 3.8+**
-- **MongoDB** (optional for production - in-memory simulation for demo)
-- **Node.js** (not required - pure vanilla JavaScript frontend)
+- Python 3.11+
+- Flutter 3.3+ (for mobile app)
+- MongoDB Atlas account (or local MongoDB)
+- Node.js (optional, for serving web dashboard)
+- `ffmpeg` (required for audio processing)
 
-### Installation
+---
 
-1. **Clone or extract the project**
-   ```bash
-   cd echoshield
-   ```
+## 🔧 Backend Setup
 
-2. **Install Python dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set up environment (optional)**
-   ```bash
-   # Create .env file for configuration
-   echo "MONGODB_URL=mongodb://localhost:27017/echoshield" > .env
-   ```
-
-## 🏃 Running the Project
-
-### Start Backend Server
+### 1. Install dependencies
 
 ```bash
-# Navigate to backend directory
-cd backend
-
-# Option 1: Run directly with Python
-python main.py
-
-# Option 2: Run with uvicorn (more control)
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+cd echoshield/backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-**Expected Output:**
-```
-============================================================
-🛡️  EchoShield Server Starting...
-============================================================
-✓ Deepfake Detector loaded
-✓ Sentiment Engine initialized
-✓ AI Negotiator ready
-✓ Database connection established
-✓ WebSocket handler active
-============================================================
-📡 Server ready at http://localhost:8000
-📊 API Docs at http://localhost:8000/docs
-============================================================
-```
+### 2. Install AI dependencies (optional but recommended)
 
-### Access Frontend
+```bash
+# Whisper for real transcription
+pip install openai-whisper
 
-1. **Open browser to:**
-   ```
-   file:///path/to/echoshield/frontend/index.html
-   ```
+# PyTorch for deepfake detection
+pip install torch torchaudio librosa Pillow torchvision
 
-2. **Or serve with Python:**
-   ```bash
-   # From backend directory
-   cd ../frontend
-   python -m http.server 8080
-   # Then visit http://localhost:8080
-   ```
-
-## 🎯 How Detection Works
-
-### 1. **Deepfake Detection Module**
-
-**Purpose:** Identify AI-generated (synthetic) voices
-
-**Method:**
-- Simulates ResNet50 acoustic feature analysis
-- Analyzes MFCC (Mel-Frequency Cepstral Coefficients)
-- Detects spectral anomalies and pitch discontinuities
-- Returns confidence score (0-1)
-
-**File:** `backend/deepfake_detector.py`
-
-```python
-detector = DeepfakeDetector()
-result = detector.detect_deepfake("audio_data")
-# Returns: {"is_deepfake": bool, "confidence": float, "risk_level": str}
+# Install ffmpeg (required by Whisper)
+# macOS:
+brew install ffmpeg
+# Ubuntu:
+sudo apt install ffmpeg
+# Windows: download from https://ffmpeg.org/download.html
 ```
 
-### 2. **Sentiment & Urgency Engine**
+### 3. Configure environment
 
-**Purpose:** Detect high-pressure scam language
-
-**Threat Keywords Detected:**
-- Urgency: "immediate", "urgent", "emergency", "now", "hurry"
-- Threats: "arrest", "lawsuit", "account suspended"
-- Manipulation: "worried", "panic", "afraid", "damage"
-
-**Scoring:** Keyword frequency + weight calculation
-
-**File:** `backend/sentiment_engine.py`
-
-```python
-engine = SentimentEngine()
-result = engine.detect_urgency("call transcript")
-# Returns: {"urgency_detected": bool, "urgency_score": float, "risk_level": str}
+```bash
+cp .env.example .env
 ```
 
-### 3. **Risk Score Calculation**
+Edit `.env`:
 
-**Combined Score Formula:**
-```
-Total Risk = (Deepfake Confidence × 0.6) + (Urgency Score × 0.4)
-```
+```env
+# MongoDB Atlas (get from https://cloud.mongodb.com)
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/echoshield
 
-**Threat Levels:**
-- **CRITICAL:** Score > 0.8 (Immediate family alert)
-- **HIGH:** Score > 0.6 (Family alert + detailed logging)
-- **MEDIUM:** Score > 0.4 (Metadata logged)
-- **LOW:** Score ≤ 0.4 (No alert)
+# JWT secret (change this!)
+JWT_SECRET_KEY=your-super-secret-key-at-least-32-chars
 
-### 4. **AI Negotiator**
+# Whisper model size (tiny/base/small/medium/large)
+WHISPER_MODEL=base
 
-**Purpose:** Generate stalling responses to waste scammer time
-
-**Strategies:**
-1. **CLARIFY** - Ask for clarification (confuse scammer)
-2. **STALL** - Appear cooperative but slow down process
-3. **MISDIRECT** - Ask for irrelevant information
-4. **SKEPTICAL** - Create doubt about legitimacy
-
-**File:** `backend/negotiator.py`
-
-### 5. **Database Logging**
-
-**Privacy-First Approach:**
-- ❌ NO raw audio files stored
-- ❌ NO phone numbers stored (masked to last 4 digits)
-- ✅ Metadata only: timestamp, threat type, confidence scores
-- ✅ Detected keywords
-- ✅ Transcript snippet (first 200 chars)
-
-**File:** `backend/database.py`
-
-## 📊 API Reference
-
-### WebSocket Endpoint
-
-**Connect:**
-```
-ws://localhost:8000/ws/{client_id}
+# Optional: Anthropic API for dynamic negotiator strategies
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-**Send Analysis Request:**
-```json
-{
-    "audio_data": "audio_sample_base64_or_placeholder",
-    "transcript": "extracted call transcript text",
-    "caller_info": {
-        "phone": "+1-555-0123",
-        "country": "US"
-    }
+> 💡 **Local MongoDB**: Use `MONGO_URI=mongodb://localhost:27017/echoshield` for a local instance.
+
+### 4. Run the backend
+
+```bash
+python run.py
+```
+
+Backend runs at: **http://localhost:8000**
+API docs at: **http://localhost:8000/docs**
+
+---
+
+## 📱 Flutter Mobile App Setup
+
+### 1. Install Flutter
+
+Follow the official guide: https://docs.flutter.dev/get-started/install
+
+### 2. Install dependencies
+
+```bash
+cd echoshield/flutter-app
+flutter pub get
+```
+
+### 3. Configure API URL
+
+The app defaults to `http://10.0.2.2:8000` (Android emulator → localhost).
+
+For a real device or different server, set via `--dart-define`:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://YOUR_SERVER_IP:8000
+```
+
+### 4. Run the app
+
+```bash
+# Android (emulator or physical device)
+flutter run
+
+# Build release APK
+flutter build apk --release --dart-define=API_BASE_URL=http://YOUR_SERVER:8000
+```
+
+### 5. iOS Setup (macOS only)
+
+```bash
+cd ios && pod install && cd ..
+flutter run -d ios
+```
+
+> ⚠️ **Microphone Permission**: The app requires microphone and phone state permissions. Accept these when prompted.
+
+---
+
+## 🌐 Web Dashboard Setup
+
+### Option 1: Open directly
+
+```bash
+open echoshield/web-dashboard/index.html
+```
+
+### Option 2: Serve with Python
+
+```bash
+cd echoshield/web-dashboard
+python -m http.server 3000
+# Open http://localhost:3000
+```
+
+### Option 3: Serve with nginx (production)
+
+```nginx
+server {
+    listen 80;
+    root /path/to/echoshield/web-dashboard;
+    index index.html;
+    location / { try_files $uri $uri/ /index.html; }
 }
 ```
 
-**Receive Analysis Response:**
-```json
-{
-    "timestamp": "2024-01-15T10:30:00.000Z",
-    "status": "ANALYSIS_COMPLETE",
-    "analysis_results": {
-        "deepfake_detection": {
-            "is_deepfake": true,
-            "confidence": 0.82,
-            "risk_level": "HIGH"
-        },
-        "urgency_detection": {
-            "urgency_detected": true,
-            "urgency_score": 0.75,
-            "risk_level": "HIGH",
-            "detected_keywords": ["urgent", "immediate", "emergency"]
-        },
-        "overall_threat_assessment": {
-            "threat_level": "HIGH",
-            "combined_confidence": 0.79,
-            "requires_family_alert": true
-        }
-    },
-    "negotiator_response": {
-        "suggested_response": "Can you hold on a moment? Let me boot up my computer.",
-        "strategy": "STALL",
-        "objective": "Keep scammer engaged, buy time"
-    }
-}
-```
+> 💡 **CORS Note**: Make sure the backend is running and CORS is enabled for your web domain. By default, `allow_origins=["*"]` allows all origins.
 
-### REST API Endpoints
+---
 
-**Health Check:**
-```
-GET http://localhost:8000/health
-```
-
-**Analyze Threat (REST):**
-```
-POST http://localhost:8000/api/analyze
-Content-Type: application/json
-
-{
-    "audio_data": "...",
-    "transcript": "...",
-    "caller_info": {...},
-    "user_id": "user123"
-}
-```
-
-**Get Threat History:**
-```
-GET http://localhost:8000/api/threats/{user_id}?days=7
-```
-
-**Get Statistics:**
-```
-GET http://localhost:8000/api/statistics/{user_id}?days=30
-```
-
-**Register User:**
-```
-POST http://localhost:8000/api/register
-
-{
-    "user_id": "user123",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "emergency_contacts": [...]
-}
-```
-
-**Export Report:**
-```
-GET http://localhost:8000/api/export/{user_id}?format=json
-```
-
-**API Documentation:**
-```
-http://localhost:8000/docs (Swagger UI)
-```
-
-## 🧪 Testing
-
-### Demo Scenarios
-
-The frontend includes pre-loaded test scenarios:
-
-1. **Scam Call** - Typical urgency-based scam with threats
-2. **Deepfake Voice** - AI-generated voice with scam language
-3. **Legitimate Call** - Normal conversation (low threat)
-
-Click scenario buttons to auto-populate test data.
-
-### Manual Testing
-
-**Test Case: Scam Call Detection**
-
-```
-Audio Data: audio_sample_test
-Transcript: "Hello, this is urgent! Your bank account has been compromised. You must act immediately to verify your identity or your account will be suspended. We need your password and wire money right now!"
-
-Expected Results:
-- Urgency Score: HIGH (0.6+)
-- Threat Level: HIGH or CRITICAL
-- Detected Keywords: [urgent, immediate, account suspended, wire money]
-- Alert: YES
-```
-
-## 🔒 Security & Privacy
-
-### Privacy Commitments
-
-1. **No Audio Storage** - Raw audio is never saved to disk
-2. **Metadata Only** - Only analysis results and keywords logged
-3. **Phone Masking** - Phone numbers masked (XXX-XXX-1234)
-4. **Transcript Limits** - Only first 200 characters stored
-5. **User Consent** - System assumes explicit user consent
-6. **GDPR Compliant** - Data retention and deletion policies
-
-### Deployment Security Recommendations
+## 🐳 Docker Deployment
 
 ```bash
-# Use environment variables for sensitive config
-export MONGODB_URL="mongodb://user:pass@host:27017/echoshield"
-export JWT_SECRET="your_secret_key"
-export CORS_ORIGINS="https://yourdomain.com"
+cd echoshield
+# Copy and configure env file
+cp backend/.env.example backend/.env
+# Edit backend/.env with your MongoDB URI
 
-# Run with SSL/TLS
-uvicorn main:app --ssl-keyfile=key.pem --ssl-certfile=cert.pem
-```
+# Start everything
+docker-compose up -d
 
-## 📈 Future Enhancements
-
-1. **ML Model Integration**
-   - Replace simulated ResNet with real pre-trained model
-   - Integrate actual BERT for urgency detection
-   - Use PyTorch for live audio processing
-
-2. **Advanced Features**
-   - Multi-language support
-   - Real-time call recording (with consent)
-   - Integration with carrier fraud detection
-   - Machine learning model retraining pipeline
-   - Real-time SMS/Email alerts
-   - WhatsApp/Telegram bot notifications
-
-3. **Scaling**
-   - Kubernetes deployment
-   - Distributed database (MongoDB Atlas)
-   - Load balancing with nginx
-   - Queue system (Celery + Redis)
-   - Caching layer (Redis)
-
-4. **Analytics**
-   - Advanced threat dashboard
-   - Pattern recognition
-   - Scammer network analysis
-   - Geographic threat mapping
-   - Time-series analysis
-
-5. **Integration**
-   - Twilio API for real call interception
-   - Vonage (Nexmo) integration
-   - Telegram bot for notifications
-   - Slack integration for security teams
-
-## 🧑‍💻 Development
-
-### Code Standards
-
-- **Python:** PEP 8, Type hints, Docstrings
-- **JavaScript:** ES6, Comments for complex logic
-- **Database:** Indexed queries, soft deletes
-
-### Running Tests
-
-```bash
-# Unit tests (when implemented)
-pytest backend/
-
-# Integration tests
-pytest tests/integration/
-
-# Coverage
-pytest --cov=backend tests/
-```
-
-### Code Structure
-
-Each module follows single responsibility:
-
-- **deepfake_detector.py** - Audio analysis only
-- **sentiment_engine.py** - Text analysis only
-- **negotiator.py** - Response generation only
-- **websocket.py** - Coordination & pipeline
-- **database.py** - Data persistence
-- **main.py** - API & server setup
-
-## 📝 Project Status
-
-✅ **Completed:**
-- Core detection engines
-- WebSocket real-time communication
-- REST API endpoints
-- Frontend UI dashboard
-- Database logging system
-- AI negotiator
-- Error handling
-
-🚀 **Ready for:**
-- College submission
-- Viva demonstration
-- Production deployment
-- Further enhancement
-
-## 📄 License & Ethics
-
-This project is developed for educational purposes with strong emphasis on:
-
-- ✅ **Ethical AI** - Designed to protect, not harm
-- ✅ **Privacy** - No unnecessary data collection
-- ✅ **Transparency** - Clear logging and auditability
-- ✅ **Consent** - User-initiated analysis only
-
-## 🤝 Support & Contribution
-
-For questions or improvements:
-
-1. Review code comments for implementation details
-2. Check API documentation at `/docs`
-3. Examine error logs in server console
-4. Test with provided demo scenarios
-
-## 👨‍🎓 For Viva Examination
-
-**Key Points to Explain:**
-
-1. **Architecture:** Why layered microservices approach?
-   - Separation of concerns
-   - Easy to test and maintain
-   - Scalable design
-
-2. **Detection Logic:** How are threats scored?
-   - Weighted combination of signals
-   - Threshold-based classification
-   - Confidence score interpretation
-
-3. **Security:** How is privacy maintained?
-   - Metadata-only storage
-   - Phone number masking
-   - No raw audio retention
-
-4. **Real-time:** Why WebSocket instead of polling?
-   - Low latency communication
-   - Persistent connection
-   - Efficient resource usage
-
-5. **Database:** Why MongoDB for this project?
-   - Schema flexibility
-   - Easy document storage
-   - Quick prototyping
-
-## 📞 Quick Reference
-
-```bash
-# Start server
-cd backend && python main.py
-
-# In another terminal, open frontend
-cd frontend && python -m http.server 8080
-
-# View API documentation
-Open: http://localhost:8000/docs
-
-# Test with WebSocket client
-wscat -c ws://localhost:8000/ws/testuser
+# Services:
+# Backend:   http://localhost:8000
+# Web:       http://localhost:3000
+# MongoDB:   localhost:27017
 ```
 
 ---
 
-**EchoShield v1.0.0** | Real-Time AI Scammer Interceptor | College Project | 2024
-# EchoShield – Real-Time AI Scammer Interceptor
+## ☁️ Cloud Deployment
 
-## Overview
-EchoShield is a real-time AI-based security system designed to protect users
-from voice-based scams by detecting deepfake voices and urgency-based
-psychological manipulation.
+### Backend on Railway / Render
 
-## Architecture
-- Frontend: HTML + JavaScript
-- Backend: FastAPI (Python)
-- Real-Time Communication: WebSockets
-- ML Models:
-  - ResNet-based CNN for deepfake voice detection
-  - NLP urgency detection (BERT-style simulation)
-- Database: MongoDB
-- Privacy-first design
+1. Push the `backend/` folder to GitHub
+2. Connect to [Railway](https://railway.app) or [Render](https://render.com)
+3. Set environment variables from `.env.example`
+4. Deploy — get a public URL like `https://echoshield-api.railway.app`
 
-## Installation
-1. Install Python 3.9+
-2. Install MongoDB and start the service
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
+### Backend on AWS/GCP/Azure
+
+```bash
+# Build Docker image
+docker build -t echoshield-backend ./backend
+
+# Tag and push to ECR/GCR/ACR
+docker tag echoshield-backend YOUR_REGISTRY/echoshield-backend:latest
+docker push YOUR_REGISTRY/echoshield-backend:latest
+```
+
+### Web Dashboard on Vercel/Netlify
+
+```bash
+# Vercel
+npx vercel ./web-dashboard
+
+# Netlify drag-and-drop:
+# Upload the web-dashboard/ folder at app.netlify.com
+```
+
+---
+
+## 🔌 API Reference
+
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/health` | GET | No | Health check |
+| `/auth/signup` | POST | No | Create new user account |
+| `/auth/login` | POST | No | Authenticate and get JWT |
+| `/auth/me` | GET | Yes | Get current user info |
+| `/auth/call-history` | GET | Yes | Get user's call history |
+| `/stream-audio` | POST | Yes | Upload audio chunk for live analysis |
+| `/analyze-audio` | POST | Yes | Analyze a complete audio recording |
+| `/analyze` | POST | Yes | Analyze transcript text directly |
+| `/call-logs` | GET | Yes | Get all call logs |
+| `/stats` | GET | Yes | Get user statistics |
+
+### Example: Analyze transcript
+
+```bash
+curl -X POST http://localhost:8000/analyze \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"transcript": "Your account will be blocked. Send money immediately."}'
+```
+
+Response:
+```json
+{
+  "call_log_id": "...",
+  "transcript": "Your account will be blocked. Send money immediately.",
+  "is_deepfake": false,
+  "deepfake_confidence": 0.12,
+  "urgency_detected": true,
+  "urgency_score": 0.95,
+  "urgency_phrases_found": ["send money immediately", "account will be blocked"],
+  "overall_threat_score": 0.87,
+  "threat_level": "CRITICAL",
+  "negotiator_strategy": "Act confused and say you need to find your reading glasses...",
+  "alert_required": true
+}
+```
+
+---
+
+## 🧠 AI Architecture
+
+### Threat Scoring Formula
+
+```
+overall_score = (deepfake_confidence × 0.40) + (urgency_score × 0.60)
+if is_deepfake: overall_score += 0.20 (capped at 1.0)
+
+LOW      = score < 0.35
+MEDIUM   = 0.35 ≤ score < 0.60
+HIGH     = 0.60 ≤ score < 0.85
+CRITICAL = score ≥ 0.85
+```
+
+### Deepfake Detection Pipeline
+
+1. Load audio with `librosa` at 16kHz
+2. Extract 128-band Mel spectrogram
+3. Resize to 128×128 pixels
+4. Pass through `SpectrogramCNN` (Conv2D → MaxPool → FC → Sigmoid)
+5. Output confidence score 0.0–1.0
+
+> 🔬 **Production**: Replace `SpectrogramCNN` with a trained model such as **RawNet2** or **AASIST** for real deepfake detection. Set `DEEPFAKE_MODEL_PATH` in `.env` to load pre-trained weights.
+
+### Scam Detection Patterns
+
+25+ weighted regex patterns covering:
+- Urgency demands: "send money immediately", "transfer funds now"
+- Account threats: "account will be blocked/suspended"
+- Fear tactics: "you will be arrested", "warrant issued"
+- Isolation: "don't hang up", "don't tell anyone"
+- Payment manipulation: "gift card payment", "bitcoin transfer"
+- Authority impersonation: IRS, Social Security, bank fraud
+
+---
+
+## 📋 Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `MONGO_URI` | `mongodb://localhost:27017/echoshield` | MongoDB connection string |
+| `JWT_SECRET_KEY` | (required) | JWT signing secret — change in production! |
+| `JWT_EXPIRE_MINUTES` | `1440` | Token expiry (24 hours) |
+| `WHISPER_MODEL` | `base` | Whisper model: tiny/base/small/medium/large |
+| `DEEPFAKE_MODEL_PATH` | `` | Path to trained deepfake model weights |
+| `DEEPFAKE_THRESHOLD` | `0.6` | Score above which call is flagged as deepfake |
+| `ANTHROPIC_API_KEY` | `` | For dynamic AI negotiator strategies |
+| `TELEGRAM_BOT_TOKEN` | `` | Optional Telegram alert bot |
+| `TELEGRAM_CHAT_ID` | `` | Optional Telegram alert recipient |
+
+---
+
+## 🔒 Security Notes
+
+- Passwords are hashed with **bcrypt** (cost factor 12)
+- JWTs expire after 24 hours by default
+- All audio is processed server-side and not stored permanently
+- Change `JWT_SECRET_KEY` before production deployment
+- Use HTTPS in production (use a reverse proxy like nginx/Caddy)
+- MongoDB Atlas has built-in encryption at rest
+
+---
+
+## 📦 Feature Checklist
+
+- [x] User signup/login with JWT authentication
+- [x] bcrypt password hashing
+- [x] MongoDB Atlas storage (users, transcripts, threat scores)
+- [x] OpenAI Whisper transcription (with mock fallback)
+- [x] PyTorch SpectrogramCNN deepfake detection
+- [x] 25+ urgency phrase pattern detection
+- [x] Multi-signal threat classification (LOW/MEDIUM/HIGH/CRITICAL)
+- [x] AI Negotiator strategy generator
+- [x] Flutter mobile app with neon dark UI
+- [x] Animated threat gauge widget
+- [x] Call log history
+- [x] Real-time threat alert overlay
+- [x] Vibration alerts for HIGH/CRITICAL threats
+- [x] Push notifications
+- [x] Web dashboard with landing page
+- [x] Interactive threat meter chart
+- [x] AI Negotiator chatbot in web UI
+- [x] Simulate scam call button for testing
+- [x] Docker Compose deployment
+- [x] Cloud deployment instructions
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Commit changes: `git commit -m 'Add my feature'`
+4. Push: `git push origin feature/my-feature`
+5. Open a Pull Request
+
+---
+
+*Built with ❤️ to protect people from phone scammers.*
