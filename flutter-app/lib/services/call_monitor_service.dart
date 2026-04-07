@@ -7,6 +7,7 @@ import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:vibration/vibration.dart';
 import 'notification_service.dart';
+import 'ws_audio_service.dart';
 
 const String _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
@@ -78,6 +79,7 @@ class ThreatResult {
 
 class CallMonitorService extends ChangeNotifier {
   final AudioRecorder _recorder = AudioRecorder();
+  final WsAudioService _wsService = WsAudioService();
 
   bool _isMonitoring = false;
   bool _isCallActive = false;
@@ -134,12 +136,32 @@ class CallMonitorService extends ChangeNotifier {
     _currentCallId = null;
     _chunkIndex = 0;
     notifyListeners();
+
+    // Start real-time WebSocket streaming
+    final host = _baseUrl.replaceAll('http://', '').split(':').first;
+    _wsService.startStreaming(
+      host: host,
+      token: _token ?? '',
+    );
+
+    // Listen to real-time threat updates
+    _wsService.threatStream.listen((data) {
+      final result = ThreatResult.fromJson(data);
+      _latestThreat = result;
+      _currentCallId ??= result.callLogId;
+      if (result.alertRequired) {
+        _triggerAlert(result);
+      }
+      notifyListeners();
+    });
+
     await _startChunkedRecording(callerNumber: callerNumber);
   }
 
   Future<void> onCallEnded() async {
     _isCallActive = false;
     await _stopRecording();
+    await _wsService.stopStreaming();
     notifyListeners();
   }
 

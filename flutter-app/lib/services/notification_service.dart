@@ -1,4 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -22,20 +24,20 @@ class NotificationService {
     required double score,
     required String transcript,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       'echoshield_threats',
       'EchoShield Threat Alerts',
       channelDescription: 'Real-time scam call threat alerts',
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'SCAM ALERT',
-      color: AndroidColor(0xFFFF0055),
+      color: const Color(0xFFFF0055),
       enableLights: true,
-      ledColor: AndroidColor(0xFFFF0055),
+      ledColor: const Color(0xFFFF0055),
       ledOnMs: 200,
       ledOffMs: 200,
       enableVibration: true,
-      vibrationPattern: [0, 500, 200, 500],
+      vibrationPattern: Int64List.fromList([0, 500, 200, 500]),
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -44,7 +46,7 @@ class NotificationService {
       presentSound: true,
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
