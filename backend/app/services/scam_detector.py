@@ -2,6 +2,14 @@ import re
 import logging
 from typing import Dict, Any, List
 
+# ML classifier — lazy-loaded, fails gracefully
+try:
+    from app.ml.nlp_classifier import classify_scam as _ml_classify
+    _ML_AVAILABLE = True
+except Exception:
+    _ML_AVAILABLE = False
+    _ml_classify = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 # Urgency phrase patterns with weights
@@ -52,14 +60,15 @@ def _normalize_text(text: str) -> str:
 
 async def detect_scam_tactics(transcript: str) -> Dict[str, Any]:
     """
-    Analyze transcript for scam tactics using pattern matching and NLP heuristics.
-    Returns urgency score and list of detected phrases.
+    Analyze transcript for scam tactics using pattern matching + ML blending.
+    Final score = 0.6 * ml_score + 0.4 * pattern_score (when ML is available).
     """
     if not transcript or len(transcript.strip()) < 5:
         return {
             "urgency_detected": False,
             "urgency_score": 0.0,
             "phrases_found": [],
+            "ml_scam_probability": 0.0,
         }
 
     normalized = _normalize_text(transcript)
@@ -80,22 +89,35 @@ async def detect_scam_tactics(transcript: str) -> Dict[str, Any]:
             scores.append(weight)
 
     if not scores:
-        urgency_score = 0.0
+        pattern_score = 0.0
     else:
-        # Weighted combination: max score + bonus for multiple detections
         max_score = max(scores)
         bonus = min(0.15 * (len(scores) - 1), 0.30)
-        urgency_score = min(max_score + bonus, 1.0)
+        pattern_score = min(max_score + bonus, 1.0)
 
-    urgency_detected = urgency_score > 0.4
+    # ── ML blending ──────────────────────────────────────────────────────────
+    ml_prob = 0.0
+    if _ML_AVAILABLE and _ml_classify is not None:
+        try:
+            ml_result = await _ml_classify(transcript)
+            ml_prob = ml_result.get("scam_probability", 0.0)
+            final_score = round(0.6 * ml_prob + 0.4 * pattern_score, 4)
+        except Exception as e:
+            logger.warning(f"ML classifier failed, using pattern only: {e}")
+            final_score = round(pattern_score, 4)
+    else:
+        final_score = round(pattern_score, 4)
+
+    urgency_detected = final_score > 0.4
 
     logger.info(
-        f"Scam detection: score={urgency_score:.3f}, "
-        f"detected={urgency_detected}, patterns={len(scores)}"
+        f"Scam detection: pattern={pattern_score:.3f}, ml={ml_prob:.3f}, "
+        f"final={final_score:.3f}, detected={urgency_detected}"
     )
 
     return {
         "urgency_detected": urgency_detected,
-        "urgency_score": round(urgency_score, 4),
-        "phrases_found": phrases_found[:10],  # cap at 10
+        "urgency_score": final_score,
+        "phrases_found": phrases_found[:10],
+        "ml_scam_probability": round(ml_prob, 4),
     }

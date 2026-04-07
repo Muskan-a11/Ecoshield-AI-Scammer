@@ -13,13 +13,13 @@ numpy
 scipy
 librosa
 soundfile
+websockets
 
-
-# AI / ML (install separately if needed)
-# openai-whisper==20231117
-# torch==2.3.0
-# torchaudio==2.3.0
-# librosa==0.10.2
-# Pillow==10.3.0
-# torchvision==0.18.0
-# numpy==1.26.4
+# AI / ML
+openai-whisper
+torch
+torchaudio
+transformers
+accelerate
+numpy
+pandas

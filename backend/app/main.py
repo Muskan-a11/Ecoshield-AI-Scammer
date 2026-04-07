@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, audio, analysis
+from app.api import auth, audio, analysis, ws_audio
 from app.core.database import connect_db, disconnect_db
 import logging
 
@@ -39,6 +39,7 @@ async def shutdown_event():
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(audio.router, tags=["Audio Processing"])
 app.include_router(analysis.router, tags=["Analysis"])
+app.include_router(ws_audio.router, tags=["WebSocket Streaming"])
 
 
 @app.get("/health", tags=["System"])
