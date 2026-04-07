@@ -10,6 +10,9 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 
+// MethodChannel matching MainActivity.kt
+const _phoneChannel = MethodChannel('com.echoshield/phone');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -27,11 +30,27 @@ void main() async {
 
   await NotificationService.initialize();
 
+  final callMonitor = CallMonitorService();
+
+  // Listen for native phone call events from Android
+  _phoneChannel.setMethodCallHandler((call) async {
+    final args = call.arguments as Map? ?? {};
+    final number = args['number'] as String? ?? '';
+    switch (call.method) {
+      case 'callStarted':
+        await callMonitor.onCallStarted(callerNumber: number);
+        break;
+      case 'callEnded':
+        await callMonitor.onCallEnded();
+        break;
+    }
+  });
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
-        ChangeNotifierProvider(create: (_) => CallMonitorService()),
+        ChangeNotifierProvider.value(value: callMonitor),
       ],
       child: const EchoShieldApp(),
     ),
@@ -81,7 +100,7 @@ class EchoShieldApp extends StatelessWidget {
           bodyMedium: TextStyle(color: Color(0xFF8A9BBE)),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardBg,
         elevation: 0,
         shape: RoundedRectangleBorder(

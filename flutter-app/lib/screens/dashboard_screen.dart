@@ -5,7 +5,7 @@ import '../services/call_monitor_service.dart';
 import '../services/api_service.dart';
 import '../widgets/threat_gauge.dart';
 import '../widgets/threat_alert_overlay.dart';
-import '../widgets/call_log_tile.dart';
+import '../widgets/call_log_tile.dart' hide StatCard;
 import '../widgets/stat_card.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -121,20 +121,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      PopupMenuButton(
+                      PopupMenuButton<dynamic>(
                         icon: const Icon(Icons.person_outline, color: Colors.white54),
                         color: const Color(0xFF0D1B2A),
-                        itemBuilder: (_) => [
+                        itemBuilder: (context) => <PopupMenuEntry<dynamic>>[
                           PopupMenuItem(
-                            child: Text(auth.user?.username ?? 'User',
-                                style: const TextStyle(color: Colors.white70)),
+                            child: Text(
+                              auth.user?.username ?? 'User',
+                              style: const TextStyle(color: Colors.white70),
+                            ),
                           ),
                           const PopupMenuDivider(),
                           PopupMenuItem(
-                            onTap: () => auth.logout().then((_) =>
-                                Navigator.pushReplacementNamed(context, '/login')),
-                            child: const Text('Logout',
-                                style: TextStyle(color: Color(0xFFFF0055))),
+                            onTap: () {
+                              auth.logout().then((_) {
+                                Navigator.pushReplacementNamed(context, '/login');
+                              });
+                            },
+                            child: const Text(
+                              'Logout',
+                              style: TextStyle(color: Color(0xFFFF0055)),
+                            ),
                           ),
                         ],
                       ),

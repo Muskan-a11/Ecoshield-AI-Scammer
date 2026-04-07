@@ -13,13 +13,14 @@ dependencies:
   # HTTP & Networking
   http: ^1.2.1
   dio: ^5.4.3+1
+  web_socket_channel: ^3.0.1
 
   # State management
   provider: ^6.1.2
   shared_preferences: ^2.2.3
 
   # Audio
-  record: ^5.1.0
+  record: ^6.1.0
   just_audio: ^0.9.38
   permission_handler: ^11.3.1
 
@@ -48,12 +49,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/images/
-    - assets/animations/
-  fonts:
-    - family: Orbitron
-      fonts:
-        - asset: assets/fonts/Orbitron-Regular.ttf
-        - asset: assets/fonts/Orbitron-Bold.ttf
-          weight: 700
