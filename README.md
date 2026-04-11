@@ -2,6 +2,14 @@
 
 > Protect yourself from phone scams with live deepfake voice detection, scam tactic recognition, and an AI negotiator that wastes scammers' time.
 
+**EchoShield** is a comprehensive multi-platform solution combining:
+- 🎙️ **Real-time voice analysis** via WebSocket
+- 🤖 **Deepfake detection** using PyTorch deep learning models
+- 🎯 **Scam pattern recognition** with NLP-based threat classification
+- 🧠 **AI negotiator** that generates strategic responses to waste scammers' time
+- 📊 **Dashboard** for monitoring threats and call history
+- 🔐 **End-to-end authentication** with JWT tokens
+
 ---
 
 ## 📁 Project Structure
@@ -166,6 +174,9 @@ flutter run
 
 # Build release APK
 flutter build apk --release --dart-define=API_BASE_URL=http://YOUR_SERVER:8000
+
+# Build release AAB for Google Play Store
+flutter build appbundle --release --dart-define=API_BASE_URL=http://YOUR_SERVER:8000
 ```
 
 ### 5. iOS Setup (macOS only)
@@ -176,6 +187,21 @@ flutter run -d ios
 ```
 
 > ⚠️ **Microphone Permission**: The app requires microphone and phone state permissions. Accept these when prompted.
+
+### 6. Running on Physical Device
+
+**Android:**
+```bash
+# Enable USB debugging on your phone
+# Connect via USB
+flutter run -d all  # Shows all available devices
+```
+
+**iOS:**
+```bash
+# Sign the app with your Apple developer account
+flutter run -d <device-id>
+```
 
 ---
 
@@ -210,7 +236,37 @@ server {
 
 ---
 
-## 🐳 Docker Deployment
+## � Running Everything Together
+
+### Development Mode (All Components)
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+python -m venv venv
+# Windows: venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
+pip install -r requirements.txt
+python run.py
+# Backend runs at: http://localhost:8000
+```
+
+**Terminal 2 - Flutter App:**
+```bash
+cd flutter-app
+flutter pub get
+flutter run
+# Select your target device when prompted
+```
+
+**Terminal 3 - Web Dashboard:**
+```bash
+cd web-dashboard
+python -m http.server 3000
+# Open: http://localhost:3000
+```
+
+### Using Docker Compose (Production-like)
 
 ```bash
 cd echoshield
@@ -218,13 +274,20 @@ cd echoshield
 cp backend/.env.example backend/.env
 # Edit backend/.env with your MongoDB URI
 
-# Start everything
+# Start everything (MongoDB, Backend, Web Dashboard)
 docker-compose up -d
 
-# Services:
-# Backend:   http://localhost:8000
-# Web:       http://localhost:3000
-# MongoDB:   localhost:27017
+# View logs
+docker-compose logs -f
+
+# Stop everything
+docker-compose down
+
+# Services available at:
+# Backend API:   http://localhost:8000
+# Web Dashboard: http://localhost:3000
+# API Docs:      http://localhost:8000/docs
+# MongoDB:       localhost:27017
 ```
 
 ---

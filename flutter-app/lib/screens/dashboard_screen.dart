@@ -339,7 +339,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.smart_toy_outlined, color: cyan, size: 16),
+                      const Icon(Icons.smart_toy_outlined, color: cyan, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -489,7 +489,7 @@ class _TextAnalyzerTabState extends State<_TextAnalyzerTab> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.smart_toy_outlined, color: cyan, size: 16),
+                  const Icon(Icons.smart_toy_outlined, color: cyan, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

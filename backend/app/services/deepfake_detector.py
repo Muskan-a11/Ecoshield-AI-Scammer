@@ -12,9 +12,9 @@ try:
     import librosa
     TORCH_AVAILABLE = True
     logger.info("PyTorch available for deepfake detection.")
-except ImportError:
+except (ImportError, OSError) as e:
     TORCH_AVAILABLE = False
-    logger.warning("PyTorch/librosa not available. Using heuristic deepfake detection.")
+    logger.warning(f"PyTorch/librosa not available ({type(e).__name__}). Using heuristic deepfake detection.")
 
 
 class SpectrogramCNN(nn.Module if TORCH_AVAILABLE else object):

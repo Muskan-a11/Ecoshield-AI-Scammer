@@ -191,7 +191,7 @@ class _ThreatOverlayState extends State<ThreatOverlay>
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '"${widget.transcript.length > 120 ? widget.transcript.substring(0, 120) + '…' : widget.transcript}"',
+                        '"${widget.transcript.length > 120 ? '${widget.transcript.substring(0, 120)}…' : widget.transcript}"',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,

@@ -87,7 +87,7 @@ class CallMonitorService extends ChangeNotifier {
   ThreatResult? _latestThreat;
   String? _currentCallId;
   String? _token;
-  List<ThreatResult> _threatHistory = [];
+  final List<ThreatResult> _threatHistory = [];
   Timer? _chunkTimer;
   int _chunkIndex = 0;
   String? _error;
