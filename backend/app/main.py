@@ -26,7 +26,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    await connect_db()
+    try:
+        await connect_db()
+    except Exception as e:
+        logger.warning(f"Database connection failed: {e}. Continuing in mock mode.")
     logger.info("EchoShield backend started.")
 
 

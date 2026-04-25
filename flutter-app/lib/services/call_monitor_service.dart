@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:vibration/vibration.dart';
@@ -11,7 +12,7 @@ import 'ws_audio_service.dart';
 
 const String _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:8000',
+  defaultValue: 'http://10.202.181.147:8000', // Your PC's Wi-Fi IP — change if IP changes
 );
 
 enum ThreatLevel { low, medium, high, critical }
@@ -89,6 +90,7 @@ class CallMonitorService extends ChangeNotifier {
   String? _token;
   final List<ThreatResult> _threatHistory = [];
   Timer? _chunkTimer;
+  StreamSubscription<Map<String, dynamic>>? _wsSubscription;
   int _chunkIndex = 0;
   String? _error;
 
@@ -138,14 +140,18 @@ class CallMonitorService extends ChangeNotifier {
     notifyListeners();
 
     // Start real-time WebSocket streaming
-    final host = _baseUrl.replaceAll('http://', '').split(':').first;
+    final host = _baseUrl
+        .replaceAll('https://', '')
+        .replaceAll('http://', '')
+        .split(':').first;
     _wsService.startStreaming(
       host: host,
       token: _token ?? '',
     );
 
-    // Listen to real-time threat updates
-    _wsService.threatStream.listen((data) {
+    // Cancel any previous WS listener before creating a new one (prevents duplicate listeners)
+    await _wsSubscription?.cancel();
+    _wsSubscription = _wsService.threatStream.listen((data) {
       final result = ThreatResult.fromJson(data);
       _latestThreat = result;
       _currentCallId ??= result.callLogId;
@@ -160,6 +166,8 @@ class CallMonitorService extends ChangeNotifier {
 
   Future<void> onCallEnded() async {
     _isCallActive = false;
+    await _wsSubscription?.cancel();
+    _wsSubscription = null;
     await _stopRecording();
     await _wsService.stopStreaming();
     notifyListeners();
@@ -176,7 +184,9 @@ class CallMonitorService extends ChangeNotifier {
   }
 
   Future<void> _recordAndSendChunk({String? callerNumber}) async {
-    final tmpPath = '/tmp/echoshield_chunk_$_chunkIndex.wav';
+    // Use the app's proper temp directory — /tmp/ does not exist on real Android devices
+    final tmpDir = await getTemporaryDirectory();
+    final tmpPath = '${tmpDir.path}/echoshield_chunk_$_chunkIndex.wav';
 
     try {
       if (await _recorder.isRecording()) {
@@ -259,6 +269,8 @@ class CallMonitorService extends ChangeNotifier {
   Future<void> _stopRecording() async {
     _chunkTimer?.cancel();
     _chunkTimer = null;
+    await _wsSubscription?.cancel();
+    _wsSubscription = null;
     if (await _recorder.isRecording()) {
       await _recorder.stop();
     }

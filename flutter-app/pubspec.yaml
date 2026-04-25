@@ -44,6 +44,9 @@ dependencies:
   # Vibration
   vibration: ^3.0.0
 
+  # File system utilities
+  path_provider: ^2.1.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
