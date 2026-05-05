@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 const String _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://10.202.181.147:8000', // Your PC's Wi-Fi IP — change if IP changes
+  defaultValue: 'http://10.146.234.147:8000', // Your PC's IP address
 );
 
 class ApiService {
@@ -36,13 +36,31 @@ class ApiService {
 
   Future<Map<String, dynamic>?> analyzeText(String transcript) async {
     try {
+      print('[API] Sending analyze request to $_baseUrl/analyze');
+      print('[API] Token: ${token.substring(0, 20)}...');
+      print('[API] Transcript length: ${transcript.length}');
+      
       final res = await http.post(
         Uri.parse('$_baseUrl/analyze'),
         headers: _headers,
         body: jsonEncode({'transcript': transcript}),
       );
-      if (res.statusCode == 200) return jsonDecode(res.body);
-    } catch (_) {}
-    return null;
+      
+      print('[API] Response status: ${res.statusCode}');
+      print('[API] Response body: ${res.body}');
+      
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      } else if (res.statusCode == 401) {
+        print('[API] Authentication failed');
+        return null;
+      } else {
+        print('[API] Error: ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      print('[API] Exception: $e');
+      return null;
+    }
   }
 }

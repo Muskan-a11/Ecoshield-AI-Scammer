@@ -11,9 +11,9 @@ _call_logs_db: Dict[str, Dict] = {}
 class MockUser:
     """Mock User model for testing."""
     
-    def __init__(self, user_id: str, email: str, username: str, hashed_password: str, 
-                 full_name: Optional[str] = None, family_contact_email: Optional[str] = None):
-        self.id = user_id
+    def __init__(self, user_id: str = None, email: str = "", username: str = "", hashed_password: str = "", 
+                 full_name: Optional[str] = None, family_contact_email: Optional[str] = None, **kwargs):
+        self.id = user_id or str(uuid4())
         self.email = email
         self.username = username
         self.hashed_password = hashed_password
@@ -89,23 +89,23 @@ class MockUser:
 class MockCallLog:
     """Mock CallLog model for testing."""
     
-    def __init__(self, call_log_id: str, user_id: str):
-        self.id = call_log_id
+    def __init__(self, call_log_id: str = None, user_id: str = "", **kwargs):
+        self.id = call_log_id or str(uuid4())
         self.user_id = user_id
-        self.call_start = datetime.utcnow()
-        self.call_end = None
-        self.caller_number = None
-        self.transcript = None
-        self.threat_level = "LOW"
-        self.deepfake_confidence = 0.0
-        self.is_deepfake = False
-        self.urgency_score = 0.0
-        self.urgency_detected = False
-        self.overall_threat_score = 0.0
-        self.urgency_phrases_found = []
-        self.negotiator_strategy = None
-        self.audio_chunks_received = 0
-        self.alert_sent = False
+        self.call_start = kwargs.get('call_start', datetime.utcnow())
+        self.call_end = kwargs.get('call_end', None)
+        self.caller_number = kwargs.get('caller_number', None)
+        self.transcript = kwargs.get('transcript', None)
+        self.threat_level = kwargs.get('threat_level', "LOW")
+        self.deepfake_confidence = kwargs.get('deepfake_confidence', 0.0)
+        self.is_deepfake = kwargs.get('is_deepfake', False)
+        self.urgency_score = kwargs.get('urgency_score', 0.0)
+        self.urgency_detected = kwargs.get('urgency_detected', False)
+        self.overall_threat_score = kwargs.get('overall_threat_score', 0.0)
+        self.urgency_phrases_found = kwargs.get('urgency_phrases_found', [])
+        self.negotiator_strategy = kwargs.get('negotiator_strategy', None)
+        self.audio_chunks_received = kwargs.get('audio_chunks_received', 0)
+        self.alert_sent = kwargs.get('alert_sent', False)
 
     async def insert(self):
         """Save call log to mock database."""

@@ -655,13 +655,31 @@
       </div>
 
       <!-- Monitor bar -->
-      <div class="monitor-bar">
+      <div class="monitor-bar" style="margin-bottom: 12px;">
         <div class="pulse-dot inactive" id="monitor-dot"></div>
         <div style="flex:1">
           <div style="font-size:13px;color:#fff;font-weight:500" id="monitor-status-text">Monitoring Inactive</div>
           <div style="font-size:11px;color:var(--text-dim)" id="monitor-sub">Enable in the mobile app to start live protection</div>
         </div>
-        <button class="btn-secondary" style="padding:8px 18px;font-size:11px" onclick="simulateCall()">SIMULATE CALL</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-primary" id="btn-live-mic" style="padding:8px 18px;font-size:11px" onclick="toggleLiveMic()">🎙️ LIVE MIC DEMO</button>
+          <button class="btn-secondary" style="padding:8px 18px;font-size:11px" onclick="simulateCall()">SIMULATE TEXT</button>
+        </div>
+      </div>
+
+      <!-- Live Transcript Display -->
+      <div class="card" id="live-transcript-card" style="display: none; margin-bottom: 24px; padding: 16px 24px; background: rgba(0, 245, 255, 0.02);">
+        <div class="card-title" style="margin-bottom: 8px; font-size: 11px; display: flex; justify-content: space-between; align-items: center;">
+          <span>🎙️ LIVE TRANSCRIPT</span>
+          <span class="spinner" id="live-analyze-spinner" style="display:none; width: 14px; height: 14px; border-width: 2px;"></span>
+        </div>
+        <div id="live-transcript-text" style="font-size: 14px; line-height: 1.6; color: #fff; min-height: 22px;"></div>
+      </div>
+
+      <!-- Live Mic Results Display -->
+      <div class="card" id="live-mic-result-card" style="display: none; margin-bottom: 24px;">
+        <div class="card-title">Live Analysis Result</div>
+        <div id="live-mic-result"></div>
       </div>
 
       <!-- Stats -->
@@ -810,7 +828,7 @@
 /* ════════════════════════════════════════════
    CONFIG
 ════════════════════════════════════════════ */
-const API_BASE = 'http://localhost:8000';
+const API_BASE = window.location.origin;
 let token = localStorage.getItem('echoshield_token');
 let currentUser = JSON.parse(localStorage.getItem('echoshield_user') || 'null');
 let gaugeChart, breakdownChart;
@@ -940,6 +958,7 @@ function showApp() {
   document.getElementById('user-avatar-initial').textContent = name[0].toUpperCase();
 
   loadDashboard();
+  startLiveMonitoring();
 }
 
 function showPage(page) {
@@ -1159,13 +1178,16 @@ async function analyzeText() {
       const data = await res.json();
       renderAnalysisResult(data);
       updateGauge(data.overall_threat_score || 0);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      document.getElementById('analyze-result').innerHTML = `<div style="color:var(--red)">Analysis failed: ${errData.detail || res.statusText}</div>`;
     }
   } catch (e) {
     document.getElementById('analyze-result').innerHTML = '<div style="color:var(--red)">Analysis failed. Is the backend running?</div>';
   }
 }
 
-function renderAnalysisResult(d) {
+function renderAnalysisResult(d, targetId = 'analyze-result') {
   const lvl = d.threat_level || 'LOW';
   const score = ((d.overall_threat_score || 0) * 100).toFixed(0);
   const color = levelColor(lvl);
@@ -1175,7 +1197,7 @@ function renderAnalysisResult(d) {
     `<span style="background:rgba(255,0,85,.1);border:1px solid rgba(255,0,85,.2);border-radius:5px;padding:2px 8px;font-size:11px;color:var(--red);margin:2px;display:inline-block">${p}</span>`
   ).join('');
 
-  document.getElementById('analyze-result').innerHTML = `
+  document.getElementById(targetId).innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <span class="badge badge-${lvl.toLowerCase()}" style="font-size:14px;padding:6px 14px">${lvl}</span>
       <span style="font-size:22px;font-weight:700;color:${color}">${score}%</span>
@@ -1321,6 +1343,313 @@ async function simulateCall() {
     updateGauge(0);
   }, 8000);
 }
+
+/* ════════════════════════════════════════════
+   LIVE MIC DEMO
+════════════════════════════════════════════ */
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+
+// Real-time transcription vars
+let speechRecognition = null;
+let liveTranscriptText = "";
+let lastAnalyzeText = "";
+let analyzeInterval = null;
+
+async function toggleLiveMic() {
+  if (isRecording) {
+    stopLiveMic();
+  } else {
+    startLiveMic();
+  }
+}
+
+async function startLiveMic() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("getUserMedia is not supported. This usually happens when the site is accessed over HTTP instead of HTTPS or localhost.");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      await sendLiveAudio(audioBlob);
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+    
+    // Start Web Speech API for live transcription
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      speechRecognition = new SpeechRecognition();
+      speechRecognition.continuous = true;
+      speechRecognition.interimResults = true;
+      liveTranscriptText = "";
+      lastAnalyzeText = "";
+      
+      document.getElementById('live-transcript-card').style.display = 'block';
+      document.getElementById('live-transcript-text').innerHTML = '<span style="color:var(--text-dim);font-style:italic">Listening...</span>';
+      document.getElementById('live-mic-result-card').style.display = 'none';
+      
+      speechRecognition.onresult = event => {
+        let interimTranscript = "";
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + " ";
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        if (finalTranscript) {
+          liveTranscriptText += finalTranscript;
+        }
+        
+        const displayHtml = liveTranscriptText + 
+          '<span style="color:var(--text-dim)">' + interimTranscript + '</span>';
+          
+        if (displayHtml.trim() !== '') {
+          document.getElementById('live-transcript-text').innerHTML = displayHtml;
+        }
+      };
+      
+      speechRecognition.start();
+      
+      // Start fast periodic analysis
+      analyzeInterval = setInterval(fastLiveAnalyze, 3000);
+    } else {
+      document.getElementById('live-transcript-card').style.display = 'block';
+      document.getElementById('live-transcript-text').innerHTML = '<span style="color:var(--orange)">Live transcript is not supported in this browser.</span>';
+    }
+    
+    // Update UI
+    const btn = document.getElementById('btn-live-mic');
+    btn.innerHTML = '⏹️ STOP RECORDING';
+    btn.style.backgroundColor = 'var(--red)';
+    btn.style.boxShadow = '0 0 15px rgba(255,0,85,0.4)';
+    
+    document.getElementById('monitor-dot').classList.remove('inactive');
+    document.getElementById('monitor-dot').style.background = 'var(--red)';
+    document.getElementById('monitor-status-text').textContent = '🎙️ LISTENING...';
+    document.getElementById('monitor-status-text').style.color = 'var(--red)';
+    document.getElementById('monitor-sub').textContent = 'Speak your scam script now...';
+    
+  } catch (err) {
+    alert('Microphone access denied or unavailable. ' + err.message);
+  }
+}
+
+function stopLiveMic() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+  
+  if (speechRecognition) {
+    speechRecognition.stop();
+  }
+  if (analyzeInterval) {
+    clearInterval(analyzeInterval);
+  }
+  
+  // Update UI immediately to "Analyzing"
+  const btn = document.getElementById('btn-live-mic');
+  btn.innerHTML = '<span class="spinner"></span> ANALYZING...';
+  btn.style.backgroundColor = '';
+  btn.style.boxShadow = '';
+  btn.disabled = true;
+  
+  document.getElementById('monitor-status-text').textContent = '🧠 AI ANALYZING AUDIO...';
+  document.getElementById('monitor-status-text').style.color = '';
+  document.getElementById('monitor-dot').style.background = '';
+  document.getElementById('monitor-sub').textContent = 'Running Whisper STT and Threat Classification...';
+}
+
+async function sendLiveAudio(audioBlob) {
+  if (!token) return;
+
+  const formData = new FormData();
+  // Using .wav extension so backend processes it correctly, even if it's webm
+  formData.append('audio', audioBlob, 'live_demo.wav');
+
+  try {
+    const res = await fetch(`${API_BASE}/analyze-audio`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      updateGauge(data.overall_threat_score || 0);
+      await loadDashboard();
+
+      document.getElementById('monitor-status-text').textContent = '⚠ FINAL ANALYSIS COMPLETE';
+      document.getElementById('monitor-sub').textContent = `Threat Level: ${data.threat_level} — ${((data.overall_threat_score||0)*100).toFixed(0)}% score (Deepfake checked)`;
+      
+      document.getElementById('live-mic-result-card').style.display = 'block';
+      renderAnalysisResult(data, 'live-mic-result');
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      document.getElementById('monitor-status-text').textContent = '❌ FINAL ANALYSIS FAILED';
+      document.getElementById('monitor-sub').textContent = errData.detail || 'Server error';
+    }
+  } catch (e) {
+    document.getElementById('monitor-status-text').textContent = '❌ CONNECTION FAILED';
+    document.getElementById('monitor-sub').textContent = 'Could not reach backend.';
+  }
+
+  // Reset UI
+  const btn = document.getElementById('btn-live-mic');
+  btn.innerHTML = '🎙️ LIVE MIC DEMO';
+  btn.disabled = false;
+
+  // Auto-reset is removed so the results stay on screen for the presentation.
+}
+
+async function fastLiveAnalyze() {
+  const text = liveTranscriptText.trim();
+  // Only analyze if text changed significantly (e.g. at least 15 new chars)
+  if (!text || text.length < 10) return;
+  if (text.length - lastAnalyzeText.length < 15 && lastAnalyzeText !== "") return;
+  
+  lastAnalyzeText = text;
+  document.getElementById('live-analyze-spinner').style.display = 'inline-block';
+  
+  try {
+    const res = await fetch(`${API_BASE}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ transcript: text })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      updateGauge(data.overall_threat_score || 0);
+      
+      document.getElementById('live-mic-result-card').style.display = 'block';
+      renderAnalysisResult(data, 'live-mic-result');
+      
+      if (data.threat_level !== 'LOW') {
+        document.getElementById('monitor-status-text').textContent = '⚠ LIVE THREAT DETECTED';
+        document.getElementById('monitor-sub').textContent = `Threat Level: ${data.threat_level} — ${((data.overall_threat_score||0)*100).toFixed(0)}% score`;
+      }
+    }
+  } catch (e) {
+    // silently ignore live analysis errors
+  } finally {
+    document.getElementById('live-analyze-spinner').style.display = 'none';
+  }
+}
+
+// RESTORED & POLISHED SIMULATE CALL
+function simulateCall() {
+  const scripts = [
+    "This is the IRS. You owe back taxes and will be arrested if you don't send money immediately.",
+    "Hello, your bank account has been compromised. Please provide your PIN to secure it.",
+    "Congratulations! You've won a $1000 gift card. Just pay the $50 shipping fee via Western Union.",
+    "This is Officer Smith. There is a warrant for your arrest. To clear this, you must pay $2000 in Bitcoin."
+  ];
+  const script = scripts[Math.floor(Math.random() * scripts.length)];
+  
+  // Clear previous
+  document.getElementById('live-transcript-card').style.display = 'block';
+  document.getElementById('live-transcript-text').innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span> Simulating incoming transcript...';
+  document.getElementById('live-mic-result-card').style.display = 'none';
+  
+  setTimeout(async () => {
+    document.getElementById('live-transcript-text').innerHTML = script;
+    
+    if (!token) return;
+    
+    document.getElementById('monitor-status-text').textContent = '🧠 AI ANALYZING SIMULATION...';
+    document.getElementById('monitor-dot').classList.remove('inactive');
+    document.getElementById('monitor-dot').style.background = 'var(--cyan)';
+    
+    try {
+      const res = await fetch(`${API_BASE}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ transcript: script })
+      });
+      const data = await res.json();
+      
+      updateGauge(data.overall_threat_score || 0);
+      document.getElementById('monitor-status-text').textContent = '⚠ SIMULATED THREAT DETECTED';
+      document.getElementById('monitor-sub').textContent = `Threat Level: ${data.threat_level} — ${((data.overall_threat_score||0)*100).toFixed(0)}% score`;
+      document.getElementById('monitor-dot').style.background = 'var(--red)';
+      
+      // Show rich result
+      document.getElementById('live-mic-result-card').style.display = 'block';
+      renderAnalysisResult(data, 'live-mic-result');
+    } catch (e) {
+      console.error("Simulation failed", e);
+    }
+  }, 1000);
+}
+
+// LIVE MONITORING (Polls for calls from mobile app)
+let lastPollId = null;
+function startLiveMonitoring() {
+  setInterval(async () => {
+    if (!token || isRecording) return; // Don't poll if we are recording locally
+    
+    try {
+      const res = await fetch(`${API_BASE}/call-logs?limit=1`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const logs = await res.json();
+      if (logs.length === 0) return;
+      
+      const latest = logs[0];
+      if (latest.id === lastPollId) return;
+      
+      // Check if call started in the last 60 seconds
+      const callTime = new Date(latest.call_start);
+      const now = new Date();
+      if (now - callTime < 60000) {
+        lastPollId = latest.id;
+        
+        // Update Dashboard with this 'live' call data
+        document.getElementById('monitor-dot').classList.remove('inactive');
+        document.getElementById('monitor-dot').style.background = 'var(--red)';
+        document.getElementById('monitor-status-text').textContent = '📡 LIVE CALL DETECTED';
+        document.getElementById('monitor-sub').textContent = `Intercepting call from: ${latest.caller_number || 'Unknown'}`;
+        
+        document.getElementById('live-transcript-card').style.display = 'block';
+        document.getElementById('live-transcript-text').textContent = latest.transcript || "Capturing live audio...";
+        
+        document.getElementById('live-mic-result-card').style.display = 'block';
+        renderAnalysisResult({
+          threat_level: latest.threat_level,
+          overall_threat_score: latest.overall_threat_score,
+          urgency_score: latest.urgency_detected ? 0.8 : 0.2, // estimated
+          is_deepfake: latest.is_deepfake,
+          urgency_phrases_found: [],
+          negotiator_strategy: latest.negotiator_strategy
+        }, 'live-mic-result');
+        
+        updateGauge(latest.overall_threat_score);
+        await loadDashboard(); // refresh stats
+      }
+    } catch (e) {
+      console.error("Live monitor error", e);
+    }
+  }, 5000);
+}
+
 </script>
 </body>
 </html>

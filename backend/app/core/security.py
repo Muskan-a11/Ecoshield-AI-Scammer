@@ -45,12 +45,14 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    from app.models.user import User
+    from app.core.database import User
     token = credentials.credentials
     payload = decode_token(token)
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token payload")
+    if User is None:
+        raise HTTPException(status_code=503, detail="Database not initialized")
     try:
         user = await User.get(user_id)
     except Exception:

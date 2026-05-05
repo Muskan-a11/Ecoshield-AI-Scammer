@@ -132,6 +132,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 > 💡 **Local MongoDB**: Use `MONGO_URI=mongodb://localhost:27017/echoshield` for a local instance.
 
+> 💡 **Mock Mode**: If no MongoDB connection is available, the backend automatically falls back to a simulated `mock_db` mode, allowing you to test the AI and UI without setting up a database.
+
 ### 4. Run the backend
 
 ```bash
@@ -233,6 +235,20 @@ server {
 ```
 
 > 💡 **CORS Note**: Make sure the backend is running and CORS is enabled for your web domain. By default, `allow_origins=["*"]` allows all origins.
+
+---
+
+## 🎤 Presentation & Live Demo Guide
+
+If you are showcasing EchoShield at a presentation, follow these crucial steps to ensure the mobile app connects to your laptop's backend over the presentation network:
+
+1. **Both devices must be on the SAME Wi-Fi network.**
+2. **Find your laptop's IPv4 address:** Run `ipconfig` (Windows) or `ifconfig` (Mac/Linux). Look for an IP like `192.168.x.x` or `10.x.x.x`.
+3. **Run the Flutter app pointing to that IP:**
+   ```bash
+   flutter run --dart-define=API_BASE_URL=http://<YOUR_LAPTOP_IP>:8000
+   ```
+4. **Fallback Plan:** If the school/office firewall blocks local ports, simply open the Web Dashboard (`http://localhost:8000`) and use the built-in **Analyzer** tab to manually paste scam transcripts and demonstrate the AI without the mobile app.
 
 ---
 

@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.api import auth, audio, analysis, ws_audio
 from app.core.database import connect_db, disconnect_db
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,3 +51,17 @@ app.include_router(ws_audio.router, tags=["WebSocket Streaming"])
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "ok", "service": "EchoShield", "version": "1.0.0"}
+
+
+# ── Serve web dashboard ──────────────────────────────────────────────────────
+_DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "web-dashboard")
+_DASHBOARD_FILE = os.path.join(_DASHBOARD_DIR, "index.html")
+
+
+@app.get("/", tags=["Dashboard"])
+async def serve_dashboard():
+    """Serve the web dashboard."""
+    if os.path.exists(_DASHBOARD_FILE):
+        return FileResponse(_DASHBOARD_FILE, media_type="text/html")
+    return {"message": "EchoShield API is running. Visit /docs for API documentation."}
+

@@ -19,8 +19,15 @@ def classify_threat(
     - Urgency/scam weight: 60%
     - Deepfake boolean adds flat 0.2 bonus
     """
-    deepfake_weight = 0.40
-    urgency_weight = 0.60
+    # When there's no audio/deepfake data (text-only analysis),
+    # give urgency score dominant weight so scam text alone can trigger HIGH/CRITICAL.
+    if deepfake_confidence <= 0.01 and not is_deepfake:
+        # Text-only mode: urgency carries 90% weight, small base from deepfake
+        deepfake_weight = 0.10
+        urgency_weight = 0.90
+    else:
+        deepfake_weight = 0.40
+        urgency_weight = 0.60
 
     combined = (deepfake_confidence * deepfake_weight) + (urgency_score * urgency_weight)
 

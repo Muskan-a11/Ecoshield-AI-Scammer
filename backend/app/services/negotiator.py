@@ -13,6 +13,12 @@ STRATEGIES = {
         "Claim your internet is down: 'My wifi keeps cutting out. Could you hold on? My grandson is usually the one who fixes these things but he's at school.'",
         "Pretend to be very elderly and confused: 'Now, which bank did you say this was? I have accounts at four different banks you see. Which account number exactly?'",
         "Say your printer is broken: 'I always write these things down. Let me find a pen. Oh, the pen is out of ink. Let me find another one...'",
+        
+        # New Enhanced Strategies
+        "Tech Support Counter: 'I don't know how to turn on the computer. I'm pressing the screen but nothing happens. Wait, is the screen the computer?'",
+        "Gift Card Counter: 'You want target gift cards? Oh, I love Target! I have a 20% off coupon. Should I buy some socks while I'm there?'",
+        "Crypto Counter: 'What is a Bitcoin ATM? Do they take quarters? I only have a jar of loose change in my house right now.'",
+        "Agent Verification: 'Before I do anything, I need your badge number. Hold on, my police officer neighbor is right here, let me put him on the phone to verify your badge...'",
     ],
     "HIGH": [
         "Stall by asking for verification: 'Before I do anything, I need you to verify you're legitimate. What's the full address of your company's registered office?'",
@@ -20,11 +26,13 @@ STRATEGIES = {
         "Ask them to repeat all information multiple times claiming you're writing everything down slowly.",
         "Tell them your spouse handles all financial matters and they won't be home until later tonight.",
         "Pretend poor phone reception: 'Sorry, you're breaking up. Can you... can you repeat that? You said don't do what exactly?'",
+        "Language barrier stall: Repeatedly ask them to explain terms very slowly. 'I don't understand what remote access means, can you explain it like I'm five?'",
     ],
     "MEDIUM": [
         "Ask for a reference number and say you'll verify through official channels before proceeding.",
         "Request all information in writing via official mail before taking any action.",
         "Tell them you need to speak with your bank directly using the number on the back of your card.",
+        "Say you are driving right now and ask them to call back in two hours.",
     ],
     "LOW": [
         "Politely ask for their name, company, and a callback number for verification.",
@@ -59,6 +67,7 @@ async def generate_negotiator_strategy(transcript: str, threat_level) -> str:
 async def _generate_with_claude(transcript: str, threat_level: str, api_key: str) -> Optional[str]:
     """Generate a custom strategy using Claude API."""
     import httpx
+    import asyncio
 
     prompt = f"""You are an anti-scam negotiator AI. A user is on a call with a suspected scammer.
     
@@ -69,21 +78,29 @@ Generate ONE specific strategy (2-3 sentences) to waste the scammer's time and p
 Be creative, realistic, and slightly humorous. The strategy should cause maximum time waste.
 Do NOT use bullet points. Just return the strategy text directly."""
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 200,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-        data = response.json()
-        if "content" in data and data["content"]:
-            return data["content"][0]["text"].strip()
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await asyncio.wait_for(
+                client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": api_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    },
+                    json={
+                        "model": "claude-sonnet-4-20250514",
+                        "max_tokens": 200,
+                        "messages": [{"role": "user", "content": prompt}],
+                    },
+                ),
+                timeout=5.0
+            )
+            data = response.json()
+            if "content" in data and data["content"]:
+                return data["content"][0]["text"].strip()
+    except asyncio.TimeoutError:
+        logger.warning("Claude API timeout")
+    except Exception as e:
+        logger.warning(f"Claude API error: {e}")
     return None

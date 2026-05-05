@@ -42,6 +42,26 @@ URGENCY_PATTERNS = [
     (r"\byou\s+owe\b", 0.55),
     (r"\boverdue\s+payment\b", 0.60),
     (r"\bback\s+taxes\b", 0.65),
+    
+    # Tech Support Scams
+    (r"\bwindows\s+defender\s+(alert|warning)\b", 0.85),
+    (r"\bmicrosoft\s+technical\s+support\b", 0.85),
+    (r"\bvirus\s+detected\s+on\s+your\s+computer\b", 0.88),
+    (r"\bdownload\s+(anydesk|teamviewer)\b", 0.95),
+    (r"\bgive\s+me\s+remote\s+access\b", 0.92),
+    
+    # Crypto / Bank Fraud
+    (r"\bgo\s+to\s+a\s+bitcoin\s+atm\b", 0.98),
+    (r"\bwithdraw\s+cash\s+and\s+deposit\b", 0.95),
+    (r"\bzelle\s+payment\b", 0.70),
+    (r"\bwire\s+transfer\b", 0.75),
+    (r"\bsafe\s+wallet\b", 0.85),
+    
+    # Grandparent / Emergency Scams
+    (r"\bi\s+am\s+in\s+jail\b", 0.85),
+    (r"\bpleas?e\s+don'?t\s+tell\s+(mom|dad|my\s+parents)\b", 0.90),
+    (r"\bi\s+need\s+bail\s+money\b", 0.92),
+    (r"\bcar\s+accident\s+need\s+cash\b", 0.88),
 ]
 
 # Compile patterns for efficiency

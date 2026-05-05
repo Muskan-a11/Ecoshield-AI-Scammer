@@ -9,8 +9,13 @@ from __future__ import annotations
 import logging
 import re
 from typing import Dict, Any
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
+
+# Thread pool for blocking operations
+_executor = ThreadPoolExecutor(max_workers=1)
 
 # ─── Try to load transformers ─────────────────────────────────────────────────
 _pipeline = None
@@ -58,6 +63,50 @@ def _fallback_classify(text: str) -> float:
     return round(score, 4)
 
 
+def _classify_with_model(transcript: str) -> Dict[str, Any]:
+    """Synchronous classification with transformer model."""
+    model_loaded = _load_model()
+    
+    if not model_loaded or _pipeline is None:
+        # Fallback
+        score = _fallback_classify(transcript)
+        logger.info(f"[NLP] Fallback classifier: score={score:.3f}")
+        return {
+            "scam_probability": score,
+            "ml_available": False,
+            "label": "SCAM" if score > 0.55 else "SAFE",
+            "confidence": score,
+        }
+    
+    try:
+        result = _pipeline(transcript[:512])[0]
+        label = result["label"]  # "POSITIVE" or "NEGATIVE" for SST-2
+        confidence = float(result["score"])
+
+        # SST-2: NEGATIVE sentiment → more scam-like (threats, urgency)
+        # For a real scam model, map directly to SCAM/SAFE
+        scam_prob = confidence if label == "NEGATIVE" else 1.0 - confidence
+        scam_prob = round(scam_prob, 4)
+
+        logger.info(f"[NLP] DistilBERT: label={label}, conf={confidence:.3f}, scam_prob={scam_prob:.3f}")
+        return {
+            "scam_probability": scam_prob,
+            "ml_available": True,
+            "label": "SCAM" if scam_prob > 0.55 else "SAFE",
+            "confidence": confidence,
+        }
+    except Exception as e:
+        logger.error(f"[NLP] Model inference failed: {e}")
+        # Fallback
+        score = _fallback_classify(transcript)
+        return {
+            "scam_probability": score,
+            "ml_available": False,
+            "label": "SCAM" if score > 0.55 else "SAFE",
+            "confidence": score,
+        }
+
+
 async def classify_scam(transcript: str) -> Dict[str, Any]:
     """
     Classify transcript for scam probability.
@@ -73,35 +122,29 @@ async def classify_scam(transcript: str) -> Dict[str, Any]:
     if not transcript or len(transcript.strip()) < 4:
         return {"scam_probability": 0.0, "ml_available": False, "label": "SAFE", "confidence": 1.0}
 
-    model_loaded = _load_model()
-
-    if model_loaded and _pipeline is not None:
-        try:
-            result = _pipeline(transcript[:512])[0]
-            label = result["label"]  # "POSITIVE" or "NEGATIVE" for SST-2
-            confidence = float(result["score"])
-
-            # SST-2: NEGATIVE sentiment → more scam-like (threats, urgency)
-            # For a real scam model, map directly to SCAM/SAFE
-            scam_prob = confidence if label == "NEGATIVE" else 1.0 - confidence
-            scam_prob = round(scam_prob, 4)
-
-            logger.info(f"[NLP] DistilBERT: label={label}, conf={confidence:.3f}, scam_prob={scam_prob:.3f}")
-            return {
-                "scam_probability": scam_prob,
-                "ml_available": True,
-                "label": "SCAM" if scam_prob > 0.55 else "SAFE",
-                "confidence": confidence,
-            }
-        except Exception as e:
-            logger.error(f"[NLP] Model inference failed: {e}")
-
-    # Fallback
-    score = _fallback_classify(transcript)
-    logger.info(f"[NLP] Fallback classifier: score={score:.3f}")
-    return {
-        "scam_probability": score,
-        "ml_available": False,
-        "label": "SCAM" if score > 0.55 else "SAFE",
-        "confidence": score,
-    }
+    try:
+        # Run the blocking classification in a thread pool with timeout
+        loop = asyncio.get_event_loop()
+        result = await asyncio.wait_for(
+            loop.run_in_executor(_executor, _classify_with_model, transcript),
+            timeout=60.0  # 60 second timeout (model loading can be slow on first call)
+        )
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("[NLP] Classification timeout, using fallback")
+        score = _fallback_classify(transcript)
+        return {
+            "scam_probability": score,
+            "ml_available": False,
+            "label": "SCAM" if score > 0.55 else "SAFE",
+            "confidence": score,
+        }
+    except Exception as e:
+        logger.error(f"[NLP] Classification error: {e}")
+        score = _fallback_classify(transcript)
+        return {
+            "scam_probability": score,
+            "ml_available": False,
+            "label": "SCAM" if score > 0.55 else "SAFE",
+            "confidence": score,
+        }

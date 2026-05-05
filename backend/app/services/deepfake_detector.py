@@ -2,8 +2,13 @@ import os
 import logging
 import numpy as np
 from typing import Dict, Any
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
+
+# Thread pool for blocking operations
+_executor = ThreadPoolExecutor(max_workers=2)
 
 # Try PyTorch and librosa
 try:
@@ -95,11 +100,8 @@ def _heuristic_deepfake_score(audio_bytes: bytes) -> float:
     return min(entropy / 8.0, 1.0) * 0.5  # scale down to reasonable range
 
 
-async def detect_deepfake(audio_path: str, audio_bytes: bytes) -> Dict[str, Any]:
-    """
-    Analyze audio for deepfake/synthetic voice artifacts.
-    Returns confidence score and boolean flag.
-    """
+def _deepfake_detection_sync(audio_path: str, audio_bytes: bytes) -> Dict[str, Any]:
+    """Synchronous deepfake detection."""
     try:
         if TORCH_AVAILABLE:
             model = _get_model()
@@ -127,6 +129,29 @@ async def detect_deepfake(audio_path: str, audio_bytes: bytes) -> Dict[str, Any]
             "is_deepfake": is_deepfake,
             "confidence": round(confidence, 4),
         }
+    except Exception as e:
+        logger.error(f"Deepfake detection error: {e}")
+        return {"is_deepfake": False, "confidence": 0.0}
+
+
+async def detect_deepfake(audio_path: str, audio_bytes: bytes) -> Dict[str, Any]:
+    """
+    Analyze audio for deepfake/synthetic voice artifacts.
+    Returns confidence score and boolean flag.
+    """
+    try:
+        # Run the blocking deepfake detection in a thread pool
+        loop = asyncio.get_event_loop()
+        result = await asyncio.wait_for(
+            loop.run_in_executor(
+                _executor,
+                _deepfake_detection_sync,
+                audio_path,
+                audio_bytes
+            ),
+            timeout=10.0  # 10 second timeout
+        )
+        return result
 
     except Exception as e:
         logger.error(f"Deepfake detection error: {e}")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from app.core.security import get_current_user
 from app.services.scam_detector import detect_scam_tactics
 from app.services.threat_classifier import classify_threat
@@ -13,11 +13,11 @@ router = APIRouter()
 
 @router.post("/analyze", response_model=dict)
 async def analyze_transcript(
-    request: dict,
+    request: dict = Body(...),
     current_user = Depends(get_current_user),
 ):
     """Analyze a transcript string directly and return threat assessment."""
-    from app.core.database import CallLog
+    import asyncio
     
     transcript = request.get("transcript", "")
     call_id = request.get("call_id")
@@ -25,50 +25,35 @@ async def analyze_transcript(
     if not transcript or len(transcript) < 5:
         raise HTTPException(status_code=400, detail="Transcript too short")
     
-    scam_result = await detect_scam_tactics(transcript)
+    logger.info(f"Analyzing transcript: {transcript[:100]}...")
+    
+    # Run analysis tasks concurrently
+    scam_task = detect_scam_tactics(transcript)
+    strategy_task = None  # Will create after threat classification
+    
+    scam_result = await asyncio.wait_for(scam_task, timeout=65.0)
+    logger.info(f"Scam detection complete: {scam_result['urgency_score']}")
+    
     threat = classify_threat(
         deepfake_confidence=0.0,
         is_deepfake=False,
         urgency_score=scam_result["urgency_score"],
         urgency_detected=scam_result["urgency_detected"],
     )
-    strategy = await generate_negotiator_strategy(transcript, threat["threat_level"])
+    logger.info(f"Threat classification: {threat['threat_level']}")
+    
+    strategy = await asyncio.wait_for(
+        generate_negotiator_strategy(transcript, threat["threat_level"]),
+        timeout=15.0
+    )
+    logger.info(f"Negotiator strategy generated")
 
-    # Optionally update an existing call log
-    if call_id:
-        log = await CallLog.get(call_id)
-        if log and log.user_id == current_user.id:
-            log.transcript = transcript
-            log.urgency_score = scam_result["urgency_score"]
-            log.urgency_detected = scam_result["urgency_detected"]
-            log.urgency_phrases_found = scam_result["phrases_found"]
-            log.overall_threat_score = threat["overall_score"]
-            log.threat_level = threat["threat_level"]
-            log.negotiator_strategy = strategy
-            await log.save()
-            call_log_id = log.id
-        else:
-            call_log_id = "unknown"
-    else:
-        # Create new log entry — works for both MockCallLog and Beanie Document
-        log_id = str(uuid4())
-        from app.core.database import is_db_connected
-        if is_db_connected():
-            # Real Beanie Document — keyword args only
-            log = CallLog(user_id=str(current_user.id))
-        else:
-            # MockCallLog — takes positional (call_log_id, user_id)
-            log = CallLog(log_id, current_user.id)
-        log.transcript = transcript
-        log.urgency_score = scam_result["urgency_score"]
-        log.urgency_detected = scam_result["urgency_detected"]
-        log.urgency_phrases_found = scam_result["phrases_found"]
-        log.overall_threat_score = threat["overall_score"]
-        log.threat_level = threat["threat_level"]
-        log.negotiator_strategy = strategy
-        log.alert_sent = threat["alert_required"]
-        await log.insert()
-        call_log_id = log_id
+    # Generate log ID for response
+    call_log_id = call_id or str(uuid4())
+    logger.info(f"Analysis complete. Returning response.")
+
+    # Serialize threat_level enum to string
+    threat_level_str = threat["threat_level"].value if hasattr(threat["threat_level"], 'value') else str(threat["threat_level"])
 
     return {
         "call_log_id": call_log_id,
@@ -79,7 +64,7 @@ async def analyze_transcript(
         "urgency_score": scam_result["urgency_score"],
         "urgency_phrases_found": scam_result["phrases_found"],
         "overall_threat_score": threat["overall_score"],
-        "threat_level": threat["threat_level"],
+        "threat_level": threat_level_str,
         "negotiator_strategy": strategy,
         "alert_required": threat["alert_required"],
     }
